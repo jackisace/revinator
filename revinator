@@ -3,9 +3,6 @@
 import argparse
 import socket
 import threading
-#from connection import connection
-import random
-import sys
 import os
 import pdb
 import time
@@ -65,10 +62,6 @@ def send(ip, cmd):
     r = s.recv(1024).decode()
     print(r)
 
-
-
-
-
 def new_window(ip):
     wd = (f"/tmp/{ip}")
     try:
@@ -127,7 +120,6 @@ def run(quiet_mode=False):
                 waitingl.append([ip, connections[-1]])
 
             else:                                       # connection from target machine
-                #pdb.set_trace()
                 managed_connections.append(connection(connections[-1]))
                 
                 latest = connections[-1][1][0]
@@ -181,7 +173,7 @@ if __name__ == '__main__':
             quit()
         except KeyboardInterrupt:
             s.close()
-            sys.exit(1)
+            quit()
 
 
     if args.quiet:
