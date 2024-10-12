@@ -1,0 +1,25 @@
+[global_config]
+  inactive_color_offset = 0.5625
+  ask_before_closing = never
+[keybindings]
+[profiles]
+  [[default]]
+    background_color = "#120000"
+    show_titlebar = False
+    scrollbar_position = hidden
+    scrollback_infinite = True
+    exit_action = hold
+    login_shell = True
+    use_custom_command = True
+    custom_command = clear; ip=$(pwd | rev | cut -d "/" -f 1 | rev); /bin/bash -s -i -l -c "(printf $ip ; cat) | nc 127.0.0.1 4444"
+    title_transmit_bg_color = "#1a5fb4"
+[layouts]
+  [[default]]
+    [[[window0]]]
+      type = Window
+      parent = ""
+    [[[child1]]]
+      type = Terminal
+      parent = window0
+      profile = default
+[plugins]
