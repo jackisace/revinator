@@ -89,7 +89,7 @@ def fix_revs():
     for file in files:
         with open(file, "r") as f:
             c = f.read()
-        c = c.replace("PORT", PORT)
+        c = c.replace("PORT", str(PORT))
         c = c.replace("IPADDRESS", IP)
         
         new_file = file[1:]
