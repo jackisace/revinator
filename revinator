@@ -7,7 +7,7 @@ import os
 import pdb
 import time
 
-IP = "172.17.0.1"
+IP = "CHANGE ME"
 PORT = 4444
 
 class connection:
@@ -96,7 +96,7 @@ def run(quiet_mode=False):
 
     HOST = ''
     global PORT
-    print("serving on port " + str(PORT))
+    print(f"\n\nserving on {IP}:{PORT}")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -162,6 +162,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     IP = args.ip
+    if IP == "CHANGE ME":
+        os.system("ip a")
+        print("\n\nYou have not configured an IP address to receive shells on. ", end="")
+        print("This can be changed by editing the revinator file (line 10), or using the -i option")
+        print("For now, you may continue by providing the IP")
+        IP = input("\n\nEnter the IP address:")
+
     PORT = args.port
 
     if args.listen:
