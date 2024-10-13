@@ -83,28 +83,10 @@ def run_t(ip):
     os.system(f"terminator -g /home/jack/revinator/config -u --working-directory {wd} 2>/dev/null")
     quit()
 
-def fix_revs():
-    global IP, PORT
-    files = [".linux.c", ".windows.c"]
-    for file in files:
-        with open(file, "r") as f:
-            c = f.read()
-        c = c.replace("PORT", str(PORT))
-        c = c.replace("IPADDRESS", IP)
-        
-        new_file = file[1:]
-        binary = new_file[:-2]
-        with open(new_file, "w") as f:
-            f.write(c)
 
-        os.system(f"gcc {new_file} -o {binary} -static -m32")
-        
-        
-                
 
 def run(quiet_mode=False):
     global s
-    fix_revs()
     connections = []
     managed_connections = []
     addresses = {}
