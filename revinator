@@ -17,6 +17,8 @@ new_rev = {}
 num_cons = 0
 unique_addresses = []
 
+
+
 class connection:
     def __init__(self, conn, first=False):
         self.conn = conn[0]
@@ -123,7 +125,7 @@ class connection:
 
         self.test_revs()
         global unique_addresses
-        print(f"{len(unique_addresses)}:\t{self.addr}")
+        print(f"{len(unique_addresses) - 1}:\t{self.addr}")
         #new_rev[self.addr] = self.rev
         self.record = False
         self.conn.settimeout(None)
@@ -181,7 +183,7 @@ def new_window(ip):
         os.mkdir(wd)
     except:
         pass
-    os.system(f"terminator -g /home/jack/revinator/config -u --working-directory {wd} 2>/dev/null")
+    os.system(f"terminator -g /tmp/config -u --working-directory {wd} 2>/dev/null")
 
 def remote(ip):
     wd = (f"/tmp/{ip}")
@@ -192,7 +194,7 @@ def remote(ip):
 
 def run_t(ip):
     wd = (f"/tmp/{ip}")
-    os.system(f"terminator -g /home/jack/revinator/config -u --working-directory {wd} 2>/dev/null")
+    os.system(f"terminator -g /tmp/config -u --working-directory {wd} 2>/dev/null")
     quit()
 
 
@@ -272,6 +274,8 @@ def run(quiet_mode=False):
 
 
 if __name__ == '__main__':
+
+    os.system("cp config /tmp/config")
    
     parser = argparse.ArgumentParser(prog='revinator', description='manages reverse shells and creates terminator windows', epilog='Good luck!')
 
