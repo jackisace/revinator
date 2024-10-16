@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 
 int main(void){
-    int port = 4444;
+    int port = 5555;
     struct sockaddr_in revsockaddr;
 
     int sockt = socket(AF_INET, SOCK_STREAM, 0);

