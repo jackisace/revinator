@@ -1,5 +1,6 @@
 [global_config]
   inactive_color_offset = 0.5625
+  ask_before_closing = never
 [keybindings]
 [profiles]
   [[default]]

