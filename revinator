@@ -22,14 +22,23 @@ from connection import connection
 def send(ip, cmd):
     global IP, PORT
     new_s = socket.socket()
+    new_s.settimeout(1)
     new_s.connect(("127.0.0.1", PORT))
     st = str(ip) + "\n"
     new_s.sendall(st.encode())
-    time.sleep(0.1)
+    time.sleep(0.5)
     st = str(cmd) + "\n"
     new_s.sendall(st.encode())
-    r = new_s.recv(1024).decode()
-    print(r)
+
+    while True:
+        try:
+            r = new_s.recv(1024).decode()
+        except:
+            return
+        if r:
+            print(r)
+        else:
+            return
 
 def new_window(ip):
     wd = (f"/tmp/{ip}")

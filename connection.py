@@ -11,6 +11,7 @@ from spawner import spawner
 class connection:
     all = []
     def __init__(self, conn):
+        print("CONNECTION RECEIVED")
         self.conn = conn[0]
         self.addr = conn[1][0]
         self.port = conn[1][1]
@@ -88,7 +89,10 @@ class connection:
                 continue
 
             if data and len(data) > 0:
-                self.sock.sendall(data)
+                try:
+                    self.sock.sendall(data)
+                except:
+                    return
             else:
                 time.sleep(0.1)
 
@@ -104,7 +108,10 @@ class connection:
                 continue
 
             if data and len(data) > 0:
-                self.conn.sendall(data)
+                try:
+                    self.conn.sendall(data)
+                except:
+                    return
             else:
                 time.sleep(0.1)
     
