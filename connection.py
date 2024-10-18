@@ -41,6 +41,7 @@ class connection:
         self.kill_cmd = True
         self.conn.close()
         self.sock.close()
+        self.parent.children.remove(self)
 
     def rcv(self):
         data = ""
@@ -74,7 +75,6 @@ class connection:
 
         self.sock = sock[0]
         self.conn.setblocking(True)
-        #self.conn.settimeout(None)
         threading.Thread(target=self.in_stream).start()
         threading.Thread(target=self.out_stream).start()
         self.connected = True

@@ -222,16 +222,17 @@ class spawner:
         
         if self.echo_cmd_test():
             return
+        print("SINGLE SESSION FOUND")
         self.children[0].kill()
-        self.children.remove(self.children[0])
 
-        self.banned.append(self.working_rev)
+        self.singles.append(self.working_rev)
         self.working_rev = ""
 
         self.test_revs()
 
 
     def report_fail(self):
+        print("FAIL REPORTED")
 
         self.banned.append(self.working_rev)
         self.working_rev = ""
