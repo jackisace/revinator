@@ -19,6 +19,7 @@ from spawner import spawner
 from connection import connection
 
 
+
 def send(ip, cmd):
     global IP, PORT
     new_s = socket.socket()

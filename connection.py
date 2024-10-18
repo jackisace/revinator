@@ -11,7 +11,7 @@ from spawner import spawner
 class connection:
     all = []
     def __init__(self, conn):
-        print("CONNECTION RECEIVED")
+        print("CONNECTION")
         self.conn = conn[0]
         self.addr = conn[1][0]
         self.port = conn[1][1]
@@ -38,9 +38,9 @@ class connection:
 
 
     def kill(self):
+        self.kill_cmd = True
         self.conn.close()
         self.sock.close()
-        self.kill_cmd = True
 
     def rcv(self):
         data = ""
@@ -51,19 +51,22 @@ class connection:
                    data += d
                 else:
                     return data
-            except TimeoutError:
+            except:
                 return data
             
     def echo_cmd_test(self):
-        self.conn.settimeout(0.2)
-        self.rcv()
-        cmd = "echo HI_REVINATOR\r\n\r\n"
-        self.conn.send(cmd.encode())
-        data = self.rcv()
-        self.echo_count = data.count("echo HI_REVINATOR")
-        if "HI_REVINATOR" not in data.replace("echo HI_REVINATOR", ""):
+        try:
+            self.conn.settimeout(0.2)
+            self.rcv()
+            cmd = "echo HI_REVINATOR\r\n\r\n"
+            self.conn.send(cmd.encode())
+            data = self.rcv()
+            self.echo_count = data.count("echo HI_REVINATOR")
+            if "HI_REVINATOR" not in data.replace("echo HI_REVINATOR", ""):
+                return False
+            return True
+        except:
             return False
-        return True
 
     def connect(self, sock):
         if self.kill_cmd:
@@ -105,6 +108,13 @@ class connection:
             try:
                 data = self.sock.recv(1024)
             except:
+                continue
+
+            if "UPLOAD" in data.decode():
+                s = data.decode().split()
+                path = s[1]
+                target_path = s[2]
+                self.parent.file_upload(path, target_path)
                 continue
 
             if data and len(data) > 0:

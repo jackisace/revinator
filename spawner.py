@@ -67,6 +67,23 @@ class spawner:
 
         return data
 
+    def file_upload(self, filepath, target_filepath):
+        print("UPLOADING", filepath, target_filepath)
+        self.create_new()
+        time.sleep(0.5)
+        child = self.children[-1]
+
+        s = f"cat > {target_filepath}\n"
+        child.conn.send(s.encode())
+        with open(filepath,"rb") as f:
+            r = f.read()
+        child.conn.sendall(r)
+        #child.conn.sendall("\x04".encode())
+        child.conn.close()
+        
+        child.kill()
+        print("SENT FILE")
+
 
     def test_revs(self):
         inc = ["&",""]
@@ -98,7 +115,7 @@ class spawner:
         for child in self.children:
             if not child.echo_cmd_test():
                 #print("ECHO FAIL", child.conn)
-                self.children.remove(child)
+                child.kill()
 
 
     def test_all(self):
