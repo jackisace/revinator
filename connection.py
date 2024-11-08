@@ -22,26 +22,7 @@ class connection:
         self.echo_count = None
         self.conn.settimeout(0.2)
         self.kill_cmd = False
-        self.parent = None
-        self.set_parent()
-        self.parent.test_all()
-        if not self.echo_cmd_test():
-            self.kill()
-            self.parent.report_fail()
-        else:
-            self.parent.report_pass()
-            connection.all.append(self)
-
-    def set_parent(self):
-        self.parent = spawner.all[self.addr]
-        spawner.all[self.addr].children.append(self)
-
-
-    def kill(self):
-        self.kill_cmd = True
-        self.conn.close()
-        self.sock.close()
-        self.parent.children.remove(self)
+        connection.all.append(self)
 
     def rcv(self):
         data = ""

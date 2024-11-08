@@ -67,6 +67,7 @@ def run(quiet_mode=False):
     global s, IP, num_cons, unique_addresses
     connections = []
     waitingl = []
+    rconnections = []
 
     HOST = ''
     global PORT
@@ -87,48 +88,16 @@ def run(quiet_mode=False):
 
             if addr == "127.0.0.1":    # connection from local user
                 ip_unique_id = int(sock.recv(1024).decode().split("/")[-1].replace("\n",""))
-                try:
-                    spawner.all[unique_addresses[ip_unique_id]].create_new()
-                    ip = unique_addresses[ip_unique_id]
-                except:
-                    try:
-                        spawner.all[ip].create_new()
-                    except:
-                        print("unable to attach to " + str(ip))
-                        continue
-                waitingl.append([ip, c])
+                
+                rconnections[ip_unique_id].connect(c)
 
             else:   # connection from target machine
+                print(c[1])
 
-                if addr not in spawner.all: # if unique address
-                    c = spawner(c)
-                    if c.kill_cmd:
-                        continue
-                    ID = len(unique_addresses)
-                    d = (f"/tmp/{ID}")
-                    try:
-                        os.mkdir(d)
-                    except:
-                        pass
-                    unique_addresses.append(addr)
-                    if not quiet_mode:
-                        threading.Thread(target=run_t,args=(ID,)).start()
+                c = connection(c)
+                rconnections.append(c)
+                print(len(rconnections)-1, addr)
 
-                else: # not unique
-                
-                    spawner.all[addr].num_cons += 1
-                    c = connection(c)
-                    if c.kill_cmd:
-                        continue
-
-                        # INFO -  waitingl.append([ip, c])
-                    for w in waitingl:    # if user is waiting to connect
-                        for con in connection.all:
-                            if not con.connected:
-                                if con.addr == w[0]:
-                                    con.connect(w[1])
-                                    waitingl.remove(w)
-                                    break
 
 
 
@@ -161,7 +130,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     IP = args.ip
-    PORT = args.port
+    PORT = int(args.port)
 
     if args.listen:
         try:
